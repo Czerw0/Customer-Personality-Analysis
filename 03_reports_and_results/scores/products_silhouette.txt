@@ -1,0 +1,1 @@
+Silhouette Score for products with 2 clusters: 0.609
