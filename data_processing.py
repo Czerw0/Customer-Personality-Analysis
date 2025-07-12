@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 
 
 #Unecessary data drop 
@@ -50,6 +51,7 @@ def processing(df):
         labels = ['0-18', '19-30', '31-45', '46-60', '61-75', '76+']
         df['Age_Category'] = pd.cut(df['Age'], bins=bins, labels=labels, right=False)
         print("Categorized 'Age' into bins.")
+        df = df.drop(['Age'], errors='ignore')
 
 
     #Z Revenue drop and Z_CostContact- not relevant - every customer has the same value
@@ -96,6 +98,36 @@ def processing(df):
 
     return df
 
+
+def advanced_processing(df):
+    """
+    Perform advanced data processing on the DataFrame.
     
+    Parameters:
+    df (pd.DataFrame): The DataFrame to process.
     
+    Returns:
+    pd.DataFrame: The processed DataFrame.
+    """    
     
+    #Encoding categorical variables
+    categorical_features = df.select_dtypes(include=['object', 'category']).columns
+    for feature in categorical_features:
+        df[feature] = df[feature].astype('category')
+        df[feature + '_encoded'] = df[feature].cat.codes
+        print(f"Encoded '{feature}' into '{feature}_encoded'.")
+
+    # Now drop all original categorical columns at once
+    df = df.drop(columns=categorical_features, errors='ignore')
+
+    #Scaling numerical features
+    numerical_features = df.select_dtypes(include=['float64', 'int64']).columns
+    scaler = StandardScaler()
+    df[numerical_features] = scaler.fit_transform(df[numerical_features])
+    print("Scaled numerical features using StandardScaler.")
+
+
+    print(df.head())
+    print(df.info())
+    print("Advanced data processing completed.")
+    return df
