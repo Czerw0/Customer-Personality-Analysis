@@ -1,5 +1,4 @@
 import os
-import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,22 +7,22 @@ from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 from mpl_toolkits.mplot3d import Axes3D
 
-# Base output directory
-BASE_REPORTS_PATH = '03_reports_and_results'
-CLUSTERED_DATA_OUTPUT_DIR = '02_data_split' # Save clustered data back to the splits directory
+# --- Define Constants for Paths ---
+# Base directory for all reports and results
+REPORTS_DIR = '03_reports_and_results'
+
+# Specific subdirectories for different types of output
+REPORTS_K_EVAL_DIR = os.path.join(REPORTS_DIR, 'k_evaluation')
+REPORTS_CLUSTER_PLOTS_DIR = os.path.join(REPORTS_DIR, 'cluster_plots')
+REPORTS_SCORES_DIR = os.path.join(REPORTS_DIR, 'scores')
+# NEW: Directory for saving plots for all k-values
+REPORTS_ALL_K_PLOTS_DIR = os.path.join(REPORTS_DIR, 'all_k_plots')
+
 
 def evaluate_k_range(df, split_name, k_range=range(2, 11)):
     """
     Calculates and plots inertia and silhouette scores for a range of k values
     to find the optimal number of clusters.
-
-    Args:
-        df (pd.DataFrame): The input dataframe with numerical data for clustering.
-        split_name (str): The name of the data split (e.g., 'people').
-        k_range (range): The range of cluster numbers to evaluate.
-
-    Returns:
-        int: The optimal number of clusters based on the highest silhouette score.
     """
     X = df.select_dtypes(include=np.number)
     inertias = []
@@ -35,9 +34,8 @@ def evaluate_k_range(df, split_name, k_range=range(2, 11)):
         inertias.append(kmeans.inertia_)
         silhouettes.append(silhouette_score(X, labels))
 
-    # Create and save the evaluation plots
-    plot_output_path = os.path.join(BASE_REPORTS_PATH, 'charts')
-    os.makedirs(plot_output_path, exist_ok=True)
+    os.makedirs(REPORTS_K_EVAL_DIR, exist_ok=True)
+    plot_output_path = os.path.join(REPORTS_K_EVAL_DIR, f'{split_name}_k_evaluation.png')
 
     plt.figure(figsize=(12, 5))
     plt.subplot(1, 2, 1)
@@ -53,84 +51,107 @@ def evaluate_k_range(df, split_name, k_range=range(2, 11)):
     plt.ylabel('Silhouette Score')
 
     plt.tight_layout()
-    plt.savefig(os.path.join(plot_output_path, f'{split_name}_k_evaluation.png'))
+    plt.savefig(plot_output_path)
     plt.close()
 
-    # Determine the best k as the one with the highest silhouette score
     optimal_k = k_range[np.argmax(silhouettes)]
     return optimal_k
 
 def cluster_with_pca(df, split_name, n_clusters, n_components=3, method='kmeans'):
     """
-    Performs PCA and clustering on the given dataframe and saves the results.
-
-    Args:
-        df (pd.DataFrame): The input dataframe.
-        split_name (str): The name of the data split (e.g., 'people').
-        n_clusters (int): The number of clusters to form.
-        n_components (int): The number of principal components to use.
-        method (str): The clustering algorithm to use ('kmeans', 'dbscan', 'agglomerative').
+    Performs PCA and clustering, saves detailed results, and returns the clustered dataframe.
     """
     X = df.select_dtypes(include=np.number)
-    df_copy = df.copy()
+    df_with_clusters = df.copy()
 
-    # Define output paths
-    reports_charts_path = os.path.join(BASE_REPORTS_PATH, 'charts')
-    reports_scores_path = os.path.join(BASE_REPORTS_PATH, 'scores')
-    os.makedirs(reports_charts_path, exist_ok=True)
-    os.makedirs(reports_scores_path, exist_ok=True)
+    os.makedirs(REPORTS_CLUSTER_PLOTS_DIR, exist_ok=True)
+    os.makedirs(REPORTS_SCORES_DIR, exist_ok=True)
 
-    # 1. PCA Transformation
     pca = PCA(n_components=n_components, random_state=42)
     X_pca = pca.fit_transform(X)
 
-    # 2. Select clustering algorithm
     if method == 'kmeans':
         model = KMeans(n_clusters=n_clusters, n_init=10, random_state=42)
     elif method == 'agglomerative':
         model = AgglomerativeClustering(n_clusters=n_clusters)
     elif method == 'dbscan':
-        model = DBSCAN(eps=0.5) # Note: DBSCAN does not use n_clusters
+        model = DBSCAN(eps=0.5) 
     else:
         raise ValueError(f"Unsupported clustering method: {method}")
 
-    # 3. Fit model and get cluster labels
     clusters = model.fit_predict(X_pca)
-    df_copy['Cluster'] = clusters
+    df_with_clusters['Cluster'] = clusters
 
-    # 4. Save the dataframe with cluster labels
-    clustered_output_path = os.path.join(CLUSTERED_DATA_OUTPUT_DIR, f"{split_name}_clustered.csv")
-    df_copy.to_csv(clustered_output_path, index=False)
-
-    # 5. Calculate and save silhouette score
     score_text = "N/A"
     if len(set(clusters)) > 1:
         silhouette = silhouette_score(X_pca, clusters)
         score_text = f"{silhouette:.3f}"
-        with open(os.path.join(reports_scores_path, f'{split_name}_silhouette.txt'), 'w') as f:
+        score_file_path = os.path.join(REPORTS_SCORES_DIR, f'{split_name}_silhouette.txt')
+        with open(score_file_path, 'w') as f:
             f.write(f"Silhouette Score for {split_name} with {n_clusters} clusters: {score_text}\n")
 
-    # 6. Visualize and save the clustering result
     title = f'"{split_name.capitalize()}" Clusters ({n_components}D PCA)\nSilhouette Score: {score_text}'
-    plot_path = os.path.join(reports_charts_path, f'{split_name}_clusters_{n_components}d.png')
+    plot_path = os.path.join(REPORTS_CLUSTER_PLOTS_DIR, f'{split_name}_clusters_{n_components}d.png')
 
     plt.figure(figsize=(10, 8))
     if n_components >= 3:
         ax = plt.axes(projection='3d')
         scatter = ax.scatter3D(X_pca[:, 0], X_pca[:, 1], X_pca[:, 2], c=clusters, cmap='viridis', alpha=0.6)
-        ax.set_xlabel('PCA 1')
-        ax.set_ylabel('PCA 2')
         ax.set_zlabel('PCA 3')
-    else: # n_components == 2
+    else:
         ax = plt.axes()
         scatter = ax.scatter(X_pca[:, 0], X_pca[:, 1], c=clusters, cmap='viridis', alpha=0.6)
-        ax.set_xlabel('PCA 1')
-        ax.set_ylabel('PCA 2')
         plt.grid(True)
-
+    
+    ax.set_xlabel('PCA 1')
+    ax.set_ylabel('PCA 2')
     ax.set_title(title)
     plt.colorbar(scatter, ax=ax, label='Cluster')
     plt.savefig(plot_path)
     plt.close()
 
-    return df
+    return df_with_clusters
+
+# --- NEW FUNCTION ---
+def save_all_k_means_plots(df, split_name, k_range=range(2, 11), n_components=2):
+    """
+    Performs PCA and K-Means clustering for a range of k values and saves a plot for each.
+
+    Args:
+        df (pd.DataFrame): The input dataframe.
+        split_name (str): The name of the data split (e.g., 'people').
+        k_range (range): The range of cluster numbers to visualize.
+        n_components (int): The number of principal components to use for visualization.
+    """
+    print(f"--- Generating K-Means plots for k={min(k_range)} to k={max(k_range)} for '{split_name}' split ---")
+    
+    X = df.select_dtypes(include=np.number)
+    
+    # Ensure the output directory for the series of plots exists
+    os.makedirs(REPORTS_ALL_K_PLOTS_DIR, exist_ok=True)
+
+    # Perform PCA once
+    pca = PCA(n_components=n_components, random_state=42)
+    X_pca = pca.fit_transform(X)
+
+    # Loop through each value of k
+    for k in k_range:
+        # Perform K-Means clustering
+        kmeans = KMeans(n_clusters=k, n_init=10, random_state=42)
+        clusters = kmeans.fit_predict(X_pca)
+        
+        # Create and save the plot
+        plt.figure(figsize=(8, 6))
+        scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], c=clusters, cmap='viridis', alpha=0.7)
+        
+        plt.title(f'"{split_name.capitalize()}" Clusters (k={k})')
+        plt.xlabel('Principal Component 1')
+        plt.ylabel('Principal Component 2')
+        plt.colorbar(scatter, label='Cluster')
+        plt.grid(True)
+        
+        plot_path = os.path.join(REPORTS_ALL_K_PLOTS_DIR, f'{split_name}_k_{k}_clusters.png')
+        plt.savefig(plot_path)
+        plt.close()
+        
+    print(f"All plots for '{split_name}' saved to {REPORTS_ALL_K_PLOTS_DIR}")
