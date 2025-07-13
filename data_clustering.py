@@ -7,7 +7,7 @@ from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.metrics import silhouette_score
 from mpl_toolkits.mplot3d import Axes3D
 
-# --- Define Constants for Paths ---
+
 # Base directory for all reports and results
 REPORTS_DIR = '03_reports_and_results'
 
@@ -15,7 +15,7 @@ REPORTS_DIR = '03_reports_and_results'
 REPORTS_K_EVAL_DIR = os.path.join(REPORTS_DIR, 'k_evaluation')
 REPORTS_CLUSTER_PLOTS_DIR = os.path.join(REPORTS_DIR, 'cluster_plots')
 REPORTS_SCORES_DIR = os.path.join(REPORTS_DIR, 'scores')
-# NEW: Directory for saving plots for all k-values
+# Directory for saving plots for all k-values
 REPORTS_ALL_K_PLOTS_DIR = os.path.join(REPORTS_DIR, 'all_k_plots')
 
 
@@ -24,7 +24,19 @@ def evaluate_k_range(df, split_name, k_range=range(2, 11)):
     Calculates and plots inertia and silhouette scores for a range of k values
     to find the optimal number of clusters.
     """
-    X = df.select_dtypes(include=np.number)
+    print(f"--- Evaluating k for '{split_name}'. Data shape: {df.shape}, Columns: {df.columns.tolist()}")
+
+    # Ensure the dataframe has numeric data to evaluate
+    if 'ID' in df.columns:
+        X = df.select_dtypes(include=np.number).drop(columns=['ID'])
+    else:
+        X = df.select_dtypes(include=np.number)
+
+    # Ensure there's data to process
+    if X.empty:
+        print(f"Warning: No numeric data to evaluate for split '{split_name}'. Skipping.")
+        return 2 # Return a default value
+
     inertias = []
     silhouettes = []
 
@@ -54,15 +66,23 @@ def evaluate_k_range(df, split_name, k_range=range(2, 11)):
     plt.savefig(plot_output_path)
     plt.close()
 
+    # Determine the best k as the one with the highest silhouette score
     optimal_k = k_range[np.argmax(silhouettes)]
     return optimal_k
 
 def cluster_with_pca(df, split_name, n_clusters, n_components=3, method='kmeans'):
     """
-    Performs PCA and clustering, saves detailed results, and returns the clustered dataframe.
+    Performs PCA and clustering on the given SCALED dataframe.
+    Returns a dataframe with just the ID and the resulting Cluster label.
     """
-    X = df.select_dtypes(include=np.number)
-    df_with_clusters = df.copy()
+    if 'ID' not in df.columns:
+        raise ValueError("The input dataframe for clustering must contain an 'ID' column.")
+
+    X = df.select_dtypes(include=np.number).drop(columns=['ID'])
+
+    if X.empty:
+        print(f"Warning: No numeric data to cluster for split '{split_name}'. Skipping.")
+        return pd.DataFrame({'ID': df['ID'], 'Cluster': 0})
 
     os.makedirs(REPORTS_CLUSTER_PLOTS_DIR, exist_ok=True)
     os.makedirs(REPORTS_SCORES_DIR, exist_ok=True)
@@ -72,20 +92,14 @@ def cluster_with_pca(df, split_name, n_clusters, n_components=3, method='kmeans'
 
     if method == 'kmeans':
         model = KMeans(n_clusters=n_clusters, n_init=10, random_state=42)
-    elif method == 'agglomerative':
-        model = AgglomerativeClustering(n_clusters=n_clusters)
-    elif method == 'dbscan':
-        model = DBSCAN(eps=0.5) 
     else:
-        raise ValueError(f"Unsupported clustering method: {method}")
+        model = AgglomerativeClustering(n_clusters=n_clusters)
 
     clusters = model.fit_predict(X_pca)
-    df_with_clusters['Cluster'] = clusters
+    cluster_labels_df = pd.DataFrame({'ID': df['ID'], 'Cluster': clusters})
 
-    score_text = "N/A"
     if len(set(clusters)) > 1:
-        silhouette = silhouette_score(X_pca, clusters)
-        score_text = f"{silhouette:.3f}"
+        score_text = f"{silhouette_score(X_pca, clusters):.3f}"
         score_file_path = os.path.join(REPORTS_SCORES_DIR, f'{split_name}_silhouette.txt')
         with open(score_file_path, 'w') as f:
             f.write(f"Silhouette Score for {split_name} with {n_clusters} clusters: {score_text}\n")
@@ -110,9 +124,8 @@ def cluster_with_pca(df, split_name, n_clusters, n_components=3, method='kmeans'
     plt.savefig(plot_path)
     plt.close()
 
-    return df_with_clusters
+    return cluster_labels_df
 
-# --- NEW FUNCTION ---
 def save_all_k_means_plots(df, split_name, k_range=range(2, 11), n_components=2):
     """
     Performs PCA and K-Means clustering for a range of k values and saves a plot for each.
@@ -127,7 +140,6 @@ def save_all_k_means_plots(df, split_name, k_range=range(2, 11), n_components=2)
     
     X = df.select_dtypes(include=np.number)
     
-    # Ensure the output directory for the series of plots exists
     os.makedirs(REPORTS_ALL_K_PLOTS_DIR, exist_ok=True)
 
     # Perform PCA once

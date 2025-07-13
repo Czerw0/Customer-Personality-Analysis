@@ -1,1 +1,1 @@
-Silhouette Score for people with 6 clusters: 0.375
+Silhouette Score for people with 5 clusters: 0.605

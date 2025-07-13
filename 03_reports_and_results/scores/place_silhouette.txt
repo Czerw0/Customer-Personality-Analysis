@@ -1,1 +1,1 @@
-Silhouette Score for place with 2 clusters: 0.493
+Silhouette Score for place with 2 clusters: 0.492

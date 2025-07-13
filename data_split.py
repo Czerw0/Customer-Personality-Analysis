@@ -1,36 +1,50 @@
 import os
+import pandas as pd
 
-def split_by_marketing_4ps(df, output_dir="02_data_split"):
+# Define the columns for each Marketing 4P split
+# These definitions are now on the "public workbench" and can be imported.
+
+PEOPLE_COLS = [
+    'ID', 'Age', 'Education', 'Living_With', 'Income', 'Kidhome', 'Teenhome',
+    'Children', 'Family_Size', 'Is_Parent', 'Days_Enrolled', 'Recency', 'Complain'
+]
+PRODUCTS_COLS = [
+    'ID', 'MntWines', 'MntFruits', 'MntMeatProducts', 'MntFishProducts',
+    'MntSweetProducts', 'MntGoldProds', 'Spent'
+]
+PROMOTION_COLS = [
+    'ID', 'NumDealsPurchases', 'AcceptedCmp1', 'AcceptedCmp2', 'AcceptedCmp3',
+    'AcceptedCmp4', 'AcceptedCmp5', 'Response'
+]
+PLACE_COLS = [
+    'ID', 'NumWebPurchases', 'NumCatalogPurchases', 'NumStorePurchases',
+    'NumWebVisitsMonth'
+]
+
+COL_DEFINITIONS = {
+    "people": PEOPLE_COLS,
+    "products": PRODUCTS_COLS,
+    "promotion": PROMOTION_COLS,
+    "place": PLACE_COLS
+}
+
+def split_by_marketing_4ps(df, output_dir):
     """
-    Splits the DataFrame into People, Products, Promotion, and Place groups and saves each as a CSV.
+    Splits the dataframe into four smaller dataframes based on the Marketing 4Ps,
+    using the globally defined COL_DEFINITIONS.
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    people_cols = [
-    'Income', 'Age_Category_encoded', 'Marital_Status_encoded', 'Education_encoded',
-    'Days_with_Company', 'Kidhome', 'Teenhome', 'Recency', 'Complain'
-    ]
-    product_cols = [
-    'MntWines', 'MntFruits', 'MntMeatProducts', 'MntFishProducts',
-    'MntSweetProducts', 'MntGoldProds', 'Total_Spend', 'Total_Purchases'
-    ]
-    promotion_cols = [
-        'NumDealsPurchases', 'AcceptedCmp1', 'AcceptedCmp2', 'AcceptedCmp3',
-        'AcceptedCmp4', 'AcceptedCmp5', 'Response'
-    ]
-    place_cols = [
-        'NumWebPurchases', 'NumCatalogPurchases', 'NumStorePurchases', 'NumWebVisitsMonth'
-    ]
-
-    # Only keep columns that exist in the DataFrame
-    people = df[[col for col in people_cols if col in df.columns]]
-    products = df[[col for col in product_cols if col in df.columns]]
-    promotion = df[[col for col in promotion_cols if col in df.columns]]
-    place = df[[col for col in place_cols if col in df.columns]]
-
-    people.to_csv(os.path.join(output_dir, "people_split.csv"), index=False)
-    products.to_csv(os.path.join(output_dir, "products_split.csv"), index=False)
-    promotion.to_csv(os.path.join(output_dir, "promotion_split.csv"), index=False)
-    place.to_csv(os.path.join(output_dir, "place_split.csv"), index=False)
+    
+    for split_name, cols in COL_DEFINITIONS.items():
+        # Filter for columns that actually exist in the passed dataframe
+        cols_to_keep = [col for col in cols if col in df.columns]
+        
+        if not cols_to_keep:
+            print(f"Warning: No columns found for split '{split_name}'. Skipping.")
+            continue
+            
+        split_df = df[cols_to_keep]
+        split_df.to_csv(os.path.join(output_dir, f"{split_name}_split.csv"), index=False)
 
     print(f"Data split and saved to '{output_dir}'.")
