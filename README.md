@@ -14,41 +14,41 @@ The repository is organized to ensure a clean and modular workflow, separating d
 
 ├── 00_raw_data/
 
-│ └── marketing_campaign.csv # The original, unprocessed dataset
+│ └── marketing_campaign.csv - The original, unprocessed dataset
 
 ├── 01_data_processed/
 
-│ └── (empty by default) # Will contain processed data (not tracked by Git)
+│ └── (empty by default) - Will contain processed data (not tracked by Git)
 
 ├── 02_data_split/
 
-│ └── (empty by default) # Will contain data splits (scaled and unscaled)
+│ └── (empty by default) Will contain data splits (scaled and unscaled)
 
 ├── 03_reports_and_results/
 
-│ ├── charts/ # Stores EDA visualizations
+│ ├── charts/ - Stores EDA visualizations
 
-│ ├── cluster_plots/ # Stores cluster visualizations (PCA plots)
+│ ├── cluster_plots/ - Stores cluster visualizations (PCA plots)
 
-│ ├── cluster_profiles/ # Stores the final Excel analysis reports
+│ ├── cluster_profiles/ - Stores the final Excel analysis reports
 
-│ └── k_evaluation/ # Stores Elbow and Silhouette score plots
+│ └── k_evaluation/ - Stores Elbow and Silhouette score plots
 
 ├── .gitignore
 
-├── analyze_clusters.py # Module for analyzing and interpreting clusters
+├── analyze_clusters.py - Module for analyzing and interpreting clusters
 
-├── data_clustering.py # Module for performing clustering algorithms
+├── data_clustering.py - Module for performing clustering algorithms
 
-├── data_loader.py # Module for loading the raw data
+├── data_loader.py - Module for loading the raw data
 
-├── data_processing.py # Module for cleaning and feature engineering
+├── data_processing.py - Module for cleaning and feature engineering
 
-├── data_split.py # Module for splitting data into 4P categories
+├── data_split.py - Module for splitting data into 4P categories
 
-├── EDA.py # Module for exploratory data analysis
+├── EDA.py - Module for exploratory data analysis
 
-├── main.py # The main pipeline controller script
+├── main.py - The main pipeline controller script
 
 └── README.md
 
